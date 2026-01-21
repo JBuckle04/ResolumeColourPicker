@@ -1,0 +1,13 @@
+{
+    "video": {
+        "effects": [
+            {
+                "params": {
+                    "Color": {
+                        "value": "#FFFFFF"
+                    }
+                }
+            }
+        ]
+    }
+}
