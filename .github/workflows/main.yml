@@ -1,0 +1,23 @@
+name: Validate Requirements
+
+on: [pull_request, push]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install pipreqs
+
+      - name: Generate expected requirements
+        run: pipreqs --force .
+
+      - name: Diff against committed requirements
+        run: |
+          git diff --exit-code requirements.txt
