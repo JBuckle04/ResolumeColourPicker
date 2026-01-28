@@ -12,7 +12,7 @@ from PySide6.QtCore import Qt, QTimer, Signal, QObject
 from PySide6.QtGui import QColor
 from concurrent.futures import ThreadPoolExecutor
 import time
-
+from importlib.resources import files
 
 # =========================
 # CONFIGURATION
@@ -247,8 +247,11 @@ class StatusHeartbeat(QObject):
 class ColourPickerEngine(QWidget):
     def __init__(self):
 
-        with open("get_colorize.json", "r") as f:
-            self.BASE_PAYLOAD = json.load(f)
+        self.BASE_PAYLOAD = json.loads(
+            files("resolume_colour_picker.data")
+            .joinpath("get_colourize.json")
+            .read_text(encoding="utf-8")
+        )
 
         self.executor = ThreadPoolExecutor(max_workers=4)
         self.session = requests.Session()
@@ -544,12 +547,7 @@ class ColourPickerEngine(QWidget):
         self._add_buttons()
 
 
-# =========================
-# ENTRY POINT
-# =========================
-
-if __name__ == "__main__":
-    
+def start():
     app = QApplication(sys.argv)
     window = ColourPickerEngine()
     window.show()
