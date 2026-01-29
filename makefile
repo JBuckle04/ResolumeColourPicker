@@ -1,4 +1,4 @@
-.PHONY: setup test run debug clean
+.PHONY: setup test run debug clean build_wheels
 
 PYTHON := .venv/bin/python
 PIP := $(PYTHON) -m pip
@@ -31,3 +31,7 @@ clean:
 	find ./src ./tests -type f -name '*.egg-info' -exec rm {} +
 	find ./src ./tests -type d -name '*.egg-info' -exec rm -r {} +
 	find ./src ./tests -type d -name '__pycache__' -exec rm -r {} +
+
+build_wheels:
+	$(PIP) wheel setuptools wheel -w wheels/
+	$(PIP) wheel . -w wheels/

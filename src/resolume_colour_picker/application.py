@@ -1,26 +1,32 @@
 import copy
 import json
-import requests
 from importlib.resources import files
 from concurrent.futures import ThreadPoolExecutor
 
 from PySide6.QtWidgets import (
-    QWidget, QPushButton,
-    QGridLayout, QLabel, QVBoxLayout, QHBoxLayout,
+    QWidget,
+    QPushButton,
+    QGridLayout,
+    QLabel,
+    QVBoxLayout,
+    QHBoxLayout,
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor
 
-from resolume_colour_picker.status_heartbeat import StatusHeartbeat
-from resolume_colour_picker.colour_dialogue import ColourConfigDialog
-from resolume_colour_picker.settings_dialogue import SettingsDialog
+from resolume_colour_picker import (
+    API,
+    ColourConfigDialog,
+    SettingsDialog,
+    StatusHeartbeat,
+)
+
 
 class ColourPickerEngine(QWidget):
     def __init__(self, config, consts):
         self.config = config
         self.config.value_changed.connect(self.config_callback)
-        
-        self.api_base_url = f"http://{self.config["WEBSERVER_IP"]}:{self.config["WEBSERVER_PORT"]}/api/v1/composition"
+
         self.colour_rows = list(self.config["COLOUR_SET"].items())
 
         self.consts = consts
@@ -31,8 +37,7 @@ class ColourPickerEngine(QWidget):
             .read_text(encoding="utf-8")
         )
 
-        self.executor = ThreadPoolExecutor(max_workers=4)
-        self.session = requests.Session()
+        self.api = API()
 
         super().__init__()
 
@@ -45,11 +50,11 @@ class ColourPickerEngine(QWidget):
         self.selected_in_column = {}
         self.buttons = {}
         self.base_colours = {}
-        
+
         # Scene Master Mode
         self.scene_master_mode = False
         self.queued_changes = []  # List of (column, colour_hex) tuples
-        
+
         # Status heartbeat components
         self.heartbeat = StatusHeartbeat(self.config)
         self.status_label = QLabel("Initialising...")
@@ -63,10 +68,7 @@ class ColourPickerEngine(QWidget):
         self.setup_heartbeat()
 
     def config_callback(self, key, value):
-        if key == "WEBSERVER_IP" or key == "WEBSERVER_PORT":
-            self.api_base_url = f"http://{self.config["WEBSERVER_IP"]}:{self.config["WEBSERVER_PORT"]}/api/v1/composition"
-
-        elif key == "COLOUR_SET":
+        if key == "COLOUR_SET":
             self.colour_rows = list(self.config["COLOUR_SET"].items())
 
             # Clear and rebuild the button grid
@@ -74,25 +76,25 @@ class ColourPickerEngine(QWidget):
                 item = self.layout.takeAt(0)
                 if item.widget():
                     item.widget().deleteLater()
-            
+
             self.buttons.clear()
             self.base_colours.clear()
             self.selected_in_column.clear()
-            
+
             self._add_headers()
             self._add_buttons()
-        
+
         elif key == "COLUMNS":
             # Clear and rebuild the button grid
             while self.layout.count():
                 item = self.layout.takeAt(0)
                 if item.widget():
                     item.widget().deleteLater()
-            
+
             self.buttons.clear()
             self.base_colours.clear()
             self.selected_in_column.clear()
-            
+
             self._add_headers()
             self._add_buttons()
 
@@ -108,7 +110,6 @@ class ColourPickerEngine(QWidget):
             int(colour.green() * factor),
             int(colour.blue() * factor),
         )
-
 
     def button_stylesheet(self, colour: QColor, selected=False) -> str:
         border = "3px solid black" if selected else "1px solid #444"
@@ -129,23 +130,25 @@ class ColourPickerEngine(QWidget):
     def build_ui(self):
         # Create main container layout
         main_layout = QVBoxLayout()
-        
+
         # Add status bar at the top
         status_layout = QHBoxLayout()
         status_layout.addWidget(QLabel("Status:"))
-        
+
         self.status_square.setFixedSize(30, 30)
-        self.status_square.setStyleSheet("background-color: #CCCCCC; border: 1px solid #444;")
+        self.status_square.setStyleSheet(
+            "background-color: #CCCCCC; border: 1px solid #444;"
+        )
         status_layout.addWidget(self.status_square)
-        
+
         status_layout.addWidget(self.status_label)
         status_layout.addWidget(QLabel("Latency:"))
         status_layout.addWidget(self.latency_label)
-        
+
         # Add scene mode indicator
         self.scene_mode_label.setStyleSheet("font-weight: bold; color: #00AA00;")
         status_layout.addWidget(self.scene_mode_label)
-        
+
         # Add configure button
         colour_btn = QPushButton("Configure Colours")
         colour_btn.clicked.connect(self.open_colour_config)
@@ -154,45 +157,48 @@ class ColourPickerEngine(QWidget):
         config_btn = QPushButton("Settings")
         config_btn.clicked.connect(self.open_settings)
         status_layout.addWidget(config_btn)
-        
-        
+
         status_layout.addStretch()
-        
+
         main_layout.addLayout(status_layout)
-        
+
         # Add colour picker grid
         grid_widget = QWidget()
         grid_widget.setLayout(self.layout)
         main_layout.addWidget(grid_widget)
-        
+
         # Add scene control buttons at bottom
         scene_control_layout = QHBoxLayout()
-        
+
         self.scene_master_btn = QPushButton("Scene Master")
         self.scene_master_btn.setFixedHeight(self.consts["BUTTON_HEIGHT"])
         self.scene_master_btn.clicked.connect(self.toggle_scene_master)
         scene_control_layout.addWidget(self.scene_master_btn)
-        
+
         # Add go/cancel buttons (hidden by default)
         self.go_btn = QPushButton("GO")
         self.go_btn.setFixedHeight(self.consts["BUTTON_HEIGHT"])
-        self.go_btn.setStyleSheet("background-color: #00AA00; color: white; font-weight: bold;")
+        self.go_btn.setStyleSheet(
+            "background-color: #00AA00; color: white; font-weight: bold;"
+        )
         self.go_btn.clicked.connect(self.send_queued_changes)
         self.go_btn.hide()
         scene_control_layout.addWidget(self.go_btn)
-        
+
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.setFixedHeight(self.consts["BUTTON_HEIGHT"])
-        self.cancel_btn.setStyleSheet("background-color: #FF6600; color: white; font-weight: bold;")
+        self.cancel_btn.setStyleSheet(
+            "background-color: #FF6600; color: white; font-weight: bold;"
+        )
         self.cancel_btn.clicked.connect(self.cancel_scene_master)
         self.cancel_btn.hide()
         scene_control_layout.addWidget(self.cancel_btn)
-        
+
         main_layout.addLayout(scene_control_layout)
-        
+
         # Set the main layout
         self.setLayout(main_layout)
-        
+
         self._add_headers()
         self._add_buttons()
 
@@ -274,6 +280,7 @@ class ColourPickerEngine(QWidget):
         layer = self.config["LAYER_MAP"][column]
         url = f"{self.api_base_url}/layers/{layer}/clips/1"
         print(payload)
+
         def task():
             try:
                 self.session.put(url, json=payload, timeout=(0.05, 0.2))
@@ -281,7 +288,6 @@ class ColourPickerEngine(QWidget):
                 print(f"API error: {e}")
 
         self.executor.submit(task)
-
 
     def send_all_api_requests(self, colour):
         def task(layer):
@@ -296,7 +302,6 @@ class ColourPickerEngine(QWidget):
         for layer in self.config["LAYER_MAP"].values():
             self.executor.submit(task, layer)
 
-
     # =========================
     # VISUAL STATE HANDLING
     # =========================
@@ -306,24 +311,26 @@ class ColourPickerEngine(QWidget):
         base_colour = self.base_colours[(column, row)]
         colour = self.darken(base_colour) if selected else base_colour
         btn.setStyleSheet(self.button_stylesheet(colour, selected))
-    
+
     def setup_heartbeat(self):
         """Set up the status heartbeat polling"""
         self.heartbeat.status_updated.connect(self.update_status_display)
         self.timer.start(self.consts["HEARTBEAT_INTERVAL"])
         # Perform initial check immediately
         self.heartbeat.check_status()
-    
+
     def update_status_display(self, status: str, latency: float, colour: str):
         """Update the status display with new information"""
         self.status_label.setText(status)
         self.latency_label.setText(f"{latency:.1f} ms" if latency > 0 else "-- ms")
-        self.status_square.setStyleSheet(f"background-color: {colour}; border: 2px solid #333;")
-    
+        self.status_square.setStyleSheet(
+            f"background-color: {colour}; border: 2px solid #333;"
+        )
+
     def toggle_scene_master(self):
         """Toggle scene master mode on/off"""
         self.scene_master_mode = not self.scene_master_mode
-        
+
         if self.scene_master_mode:
             self.scene_mode_label.setText("SCENE MASTER MODE")
             self.scene_mode_label.setStyleSheet("font-weight: bold; color: #FF6600;")
@@ -338,35 +345,35 @@ class ColourPickerEngine(QWidget):
             self.cancel_btn.hide()
             self.queued_changes = []
             print("Scene Master Mode: INACTIVE")
-    
+
     def send_queued_changes(self):
         """Send all queued changes to Resolume"""
         print(f"Sending {len(self.queued_changes)} queued changes...")
-        
+
         # Group changes by column
         changes_by_column = {}
         for column, colour in self.queued_changes:
             changes_by_column[column] = colour
-        
+
         # Send each change
         for column, colour in changes_by_column.items():
             self.send_api_request(column, colour)
-        
+
         print("All queued changes sent!")
         self.toggle_scene_master()  # Exit scene master mode
-    
+
     def cancel_scene_master(self):
         """Cancel scene master mode without sending changes"""
         print(f"Cancelled {len(self.queued_changes)} queued changes")
-        
+
         # Reset button states
         for column in self.selected_in_column.keys():
             row = self.selected_in_column[column]
             self._set_button_state(column, row, selected=False)
-        
+
         self.selected_in_column = {}
         self.toggle_scene_master()  # Exit scene master mode
-    
+
     def open_colour_config(self):
         """Open the colour configuration dialog"""
         dialog = ColourConfigDialog(self.config, self)
@@ -376,4 +383,3 @@ class ColourPickerEngine(QWidget):
         """Open the colour configuration dialog"""
         dialog = SettingsDialog(self.config, self)
         dialog.exec()
-    

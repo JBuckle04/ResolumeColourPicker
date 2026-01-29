@@ -7,22 +7,35 @@ from importlib.resources import files
 from concurrent.futures import ThreadPoolExecutor
 
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QPushButton,
-    QGridLayout, QLabel, QVBoxLayout, QHBoxLayout,
-    QDialog, QTableWidget, QTableWidgetItem, QLineEdit,
-    QHeaderView, QColorDialog
+    QApplication,
+    QWidget,
+    QPushButton,
+    QGridLayout,
+    QLabel,
+    QVBoxLayout,
+    QHBoxLayout,
+    QDialog,
+    QTableWidget,
+    QTableWidgetItem,
+    QLineEdit,
+    QHeaderView,
+    QColorDialog,
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QObject
 from PySide6.QtGui import QColor
 
+from resolume_colour_picker.api import API
 from resolume_colour_picker.application import ColourPickerEngine
+from resolume_colour_picker.colour_dialogue import ColourConfigDialog
 from resolume_colour_picker.config import Config
+from resolume_colour_picker.settings_dialogue import SettingsDialog
+from resolume_colour_picker.status_heartbeat import StatusHeartbeat
 
 # =========================
 # CONFIGURATION
 # =========================
 
-COLUMNS = ["ALL" , "Outer", "Middle", "Inner", "DJ"]
+COLUMNS = ["ALL", "Outer", "Middle", "Inner", "DJ"]
 ALL_COLUMN = "ALL"
 
 # Define colours as a dictionary
@@ -44,7 +57,7 @@ CONSTS = {
     "WINDOW_SIZE": (900, 700),
     "BUTTON_HEIGHT": 55,
     "DARKEN_FACTOR": 0.65,
-    "HEARTBEAT_INTERVAL": 3000  # 3 seconds in milliseconds
+    "HEARTBEAT_INTERVAL": 3000,  # 3 seconds in milliseconds
 }
 
 
@@ -60,10 +73,6 @@ LAYER_MAP = {
 }
 
 RESOLUME_PRODUCT_URL = f"http://{WEBSERVER_IP}:{WEBSERVER_PORT}/api/v1/product"
-
-
-
-
 
 
 # =========================

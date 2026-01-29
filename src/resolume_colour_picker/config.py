@@ -4,15 +4,17 @@ from pathlib import Path
 from platformdirs import user_cache_dir
 from PySide6.QtCore import Signal, QObject
 
-        
 
 class Config(QObject):
     """
     Manages a simple JSON cache stored in an OS-appropriate user cache directory.
     """
-    value_changed = Signal(str, object) # Key, Value
 
-    def __init__(self, app_name: str, filename: str = "cache.json", defaults: dict = {}):
+    value_changed = Signal(str, object)  # Key, Value
+
+    def __init__(
+        self, app_name: str, filename: str = "cache.json", defaults: dict = {}
+    ):
         super().__init__()
         self.app_name = app_name
 
@@ -20,18 +22,18 @@ class Config(QObject):
         self.cache_dir = Path(user_cache_dir(app_name))
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        self.cache_file = self.cache_dir.joinpath(filename) 
+        self.cache_file = self.cache_dir.joinpath(filename)
         self._data = {}
         self.load()
 
         self.defaults = defaults
-        for (key, value) in defaults.items():
+        for key, value in defaults.items():
             if key not in self:
-                self.set(key, value, broadcast=False) 
+                self.set(key, value, broadcast=False)
 
-    def reset(self, broadcast = True):
-        for (key, value) in self.defaults.items():
-            self.set(key, value, broadcast=broadcast) 
+    def reset(self, broadcast=True):
+        for key, value in self.defaults.items():
+            self.set(key, value, broadcast=broadcast)
 
     def load(self):
         """Load cache data from disk."""
@@ -40,7 +42,9 @@ class Config(QObject):
                 with open(self.cache_file, "r", encoding="utf-8") as f:
                     self._data = json.load(f)
             except (json.JSONDecodeError, IOError):
-                print(f"Warning: cache file corrupted, starting fresh: {self.cache_file}")
+                print(
+                    f"Warning: cache file corrupted, starting fresh: {self.cache_file}"
+                )
                 self._data = {}
         else:
             self._data = {}
