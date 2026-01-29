@@ -12,19 +12,20 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.parent_obj = parent
         self.config = config
-        self.settings = [("WEBSERVER_IP", "input"), ("WEBSERVER_PORT","input"), ("RESET", "button", self.config.reset)]
+        self.settings = [("WEBSERVER_IP", "input"), ("WEBSERVER_PORT","input"), ("RESET", "button", self.reset)]
         self.setting_val = []
         
         self.setWindowTitle("Settings")
         self.init_ui()
         self.resize(600, 400)
-
-        self.config.value_changed.connect(self.config_callback)
-
-    def config_callback(self, key, value):
-        dialog = SettingsDialog(self.config, parent=self.parent_obj)
-        dialog.exec()
+    
+    def reset(self):
+        self.config.reset(broadcast=False)
+        self.config.broadcast_change("COLOUR_SET")
+        self.config.broadcast_change("WEBSERVER_IP")
         self.reject()
+        dialog = SettingsDialog(self.config, self.parent_obj)
+        dialog.exec()
         
     
     def init_ui(self):

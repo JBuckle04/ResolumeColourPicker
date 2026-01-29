@@ -66,7 +66,7 @@ class ColourPickerEngine(QWidget):
         if key == "WEBSERVER_IP" or key == "WEBSERVER_PORT":
             self.api_base_url = f"http://{self.config["WEBSERVER_IP"]}:{self.config["WEBSERVER_PORT"]}/api/v1/composition"
 
-        if key == "COLOUR_SET":
+        elif key == "COLOUR_SET":
             self.colour_rows = list(self.config["COLOUR_SET"].items())
 
             # Clear and rebuild the button grid
