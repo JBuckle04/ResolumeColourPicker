@@ -18,10 +18,10 @@ class LayerMapDialog(QDialog):
         self.init_ui()
         self.resize(600, 400)
 
-    def delete_row(self, label_item):
+    def delete_row(self, idx):
         row = 0
         for i in range(len(self.layer_list)):
-            if self.layer_list[i][0] == label_item:
+            if self.layer_list[i][0] == idx:
                 row = i
 
         self.layer_list.pop(row)
@@ -36,11 +36,23 @@ class LayerMapDialog(QDialog):
             found_name = True
             new_name = f"new layer ({index})"
 
-            for (layer_item, _) in self.layer_list:
+            for (_, layer_item, _) in self.layer_list:
                 if new_name == layer_item.text().strip():
                     found_name = False
 
             index += 1
+
+        found_idx = False
+        new_idx = 0
+        while not found_idx:
+            found_idx = True
+
+            for (idx, _, _) in self.layer_list:
+                if new_idx == idx:
+                    found_idx = False
+
+            if not found_idx:
+                new_idx += 1
         
         new_row = len(self.layer_list)
 
@@ -48,10 +60,10 @@ class LayerMapDialog(QDialog):
         value_item = QLineEdit("0")
         
         delete_button = QPushButton("X")
-        delete_button.clicked.connect(lambda checked, row=new_row: self.delete_row(row))
+        delete_button.clicked.connect(lambda checked, idx=new_idx: self.delete_row(idx))
 
         
-        self.layer_list.append((label_item, value_item))
+        self.layer_list.append((new_idx, label_item, value_item))
         self.table.setRowCount(len(self.layer_list))
 
         self.table.setCellWidget(new_row, 0, label_item)
@@ -79,19 +91,20 @@ class LayerMapDialog(QDialog):
             value_item = QLineEdit(str(value))
             
             delete_button = QPushButton("X")
-            delete_button.clicked.connect(lambda checked, label=label_item: self.delete_row(label_item))
+            delete_button.clicked.connect(lambda checked, idx=row: self.delete_row(idx))
     
             self.table.setCellWidget(row, 0, label_item)
             self.table.setCellWidget(row, 1, value_item)
             self.table.setCellWidget(row, 2, delete_button)
             
             
-            self.layer_list.append((label_item, value_item))
+            self.layer_list.append((row, label_item, value_item))
         
         # Resize columns to fit content
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         
         layout.addWidget(self.table)
         
@@ -116,7 +129,7 @@ class LayerMapDialog(QDialog):
     def save_changes(self):
         """Save changes"""
         new_layer_map = {}
-        for label, value in self.layer_list:
+        for _, label, value in self.layer_list:
             try:
                     value_int = int(value.text().strip())
                     new_layer_map[label.text().strip()] = value_int
