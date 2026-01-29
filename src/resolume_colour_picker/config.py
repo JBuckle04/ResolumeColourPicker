@@ -31,6 +31,9 @@ class Config(QObject):
             if key not in self:
                 self.set(key, value, broadcast=False)
 
+    def reset(self, broadcast = True):
+        for (key, value) in self.defaults.items():
+            self.set(key, value, broadcast=broadcast)
     def reset(self, broadcast=True):
         for key, value in self.defaults.items():
             self.set(key, value, broadcast=broadcast)
