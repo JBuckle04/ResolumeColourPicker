@@ -18,5 +18,5 @@
         "8 - White": "#FFFFFF"
     },
     "WEBSERVER_IP": "localhost",
-    "WEBSERVER_PORT": 8080
+    "WEBSERVER_PORT": "8080"
 }

@@ -13,6 +13,7 @@ from PySide6.QtGui import QColor
 
 from resolume_colour_picker.status_heartbeat import StatusHeartbeat
 from resolume_colour_picker.colour_dialogue import ColourConfigDialog
+from resolume_colour_picker.settings_dialogue import SettingsDialog
 
 class ColourPickerEngine(QWidget):
     def __init__(self, config, consts):
@@ -65,7 +66,7 @@ class ColourPickerEngine(QWidget):
         if key == "WEBSERVER_IP" or key == "WEBSERVER_PORT":
             self.api_base_url = f"http://{self.config["WEBSERVER_IP"]}:{self.config["WEBSERVER_PORT"]}/api/v1/composition"
 
-        elif key == "COLOUR_SET":
+        if key == "COLOUR_SET":
             self.colour_rows = list(self.config["COLOUR_SET"].items())
 
             # Clear and rebuild the button grid
@@ -146,9 +147,14 @@ class ColourPickerEngine(QWidget):
         status_layout.addWidget(self.scene_mode_label)
         
         # Add configure button
-        config_btn = QPushButton("Configure Colours")
-        config_btn.clicked.connect(self.open_colour_config)
+        colour_btn = QPushButton("Configure Colours")
+        colour_btn.clicked.connect(self.open_colour_config)
+        status_layout.addWidget(colour_btn)
+
+        config_btn = QPushButton("Settings")
+        config_btn.clicked.connect(self.open_settings)
         status_layout.addWidget(config_btn)
+        
         
         status_layout.addStretch()
         
@@ -364,5 +370,10 @@ class ColourPickerEngine(QWidget):
     def open_colour_config(self):
         """Open the colour configuration dialog"""
         dialog = ColourConfigDialog(self.config, self)
+        dialog.exec()
+
+    def open_settings(self):
+        """Open the colour configuration dialog"""
+        dialog = SettingsDialog(self.config, self)
         dialog.exec()
     

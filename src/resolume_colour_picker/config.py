@@ -20,13 +20,18 @@ class Config(QObject):
         self.cache_dir = Path(user_cache_dir(app_name))
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        self.cache_file = self.cache_dir / filename
+        self.cache_file = self.cache_dir.joinpath(filename) 
         self._data = {}
         self.load()
 
+        self.defaults = defaults
         for (key, value) in defaults.items():
             if key not in self:
                 self.set(key, value, broadcast=False) 
+
+    def reset(self):
+        for (key, value) in self.defaults.items():
+            self.set(key, value) 
 
     def load(self):
         """Load cache data from disk."""

@@ -86,4 +86,5 @@ def start():
     config = Config("Colour Picker Engine", defaults=defaults)
     window = ColourPickerEngine(config, CONSTS)
     window.show()
+    app.aboutToQuit.connect(config.save)
     sys.exit(app.exec())
