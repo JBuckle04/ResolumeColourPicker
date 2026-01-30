@@ -4,3 +4,4 @@ __pycache__
 .requirements-installed
 build/*
 wheels/*
+.tool-versions
