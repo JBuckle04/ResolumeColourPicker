@@ -1,161 +1,144 @@
 from PySide6.QtWidgets import (
-    QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
-    QDialog, QTableWidget, QLineEdit,
-    QHeaderView, QColorDialog
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QTableView, QStyledItemDelegate, QColorDialog, QLineEdit, QMessageBox
 )
+from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 from PySide6.QtGui import QColor
 
 
+class ColourTableModel(QAbstractTableModel):
+    """Model for storing colour labels and hex values."""
+    
+    def __init__(self, colours: dict, parent=None):
+        super().__init__(parent)
+        # Store as ordered list of (label, hex)
+        self._data = list(colours.items())
+
+    def rowCount(self, parent=QModelIndex()):
+        return len(self._data)
+
+    def columnCount(self, parent=QModelIndex()):
+        return 2  # Label, Hex
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return None
+        row, col = index.row(), index.column()
+        label, hex_val = self._data[row]
+        if role in (Qt.DisplayRole, Qt.EditRole):
+            return label if col == 0 else hex_val
+        if role == Qt.BackgroundRole and col == 1:
+            return QColor(hex_val)
+        return None
+
+    def setData(self, index, value, role=Qt.EditRole):
+        if not index.isValid() or role != Qt.EditRole:
+            return False
+        row, col = index.row(), index.column()
+        label, hex_val = self._data[row]
+        if col == 0:
+            self._data[row] = (value.strip(), hex_val)
+        elif col == 1:
+            self._data[row] = (label, value.strip())
+        self.dataChanged.emit(index, index)
+        return True
+
+    def flags(self, index):
+        if not index.isValid():
+            return Qt.NoItemFlags
+        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+
+    def insertRow(self, row, parent=QModelIndex(), label="new colour", hex_val="#ffffff"):
+        self.beginInsertRows(parent, row, row)
+        self._data.insert(row, (label, hex_val))
+        self.endInsertRows()
+        return True
+
+    def removeRow(self, row, parent=QModelIndex()):
+        if 0 <= row < len(self._data):
+            self.beginRemoveRows(parent, row, row)
+            self._data.pop(row)
+            self.endRemoveRows()
+            return True
+        return False
+
+    def get_all_colours(self):
+        return dict(self._data)
+
+
+class ColourDelegate(QStyledItemDelegate):
+    """Delegate to handle colour picking for hex column."""
+    
+    def createEditor(self, parent, option, index):
+        if index.column() == 1:
+            # Non-native QColorDialog approach
+            colour = QColor(index.model().data(index, Qt.DisplayRole))
+            dlg = QColorDialog(colour, parent)
+            dlg.setOption(QColorDialog.DontUseNativeDialog, True)
+            if dlg.exec():
+                new_colour = dlg.currentColor().name()
+                index.model().setData(index, new_colour)
+            return None  # no persistent editor
+        else:
+            return QLineEdit(parent)
+
+
 class ColourConfigDialog(QDialog):
-    """Dialog for configuring colour palette"""
+    """Dialog for configuring colour palette safely using QTableView."""
     
     def __init__(self, config, parent=None):
         super().__init__(parent)
         self.config = config
-        
         self.setWindowTitle("Configure Colour Palette")
-        # Store as ordered list of (idx, label, hex) to maintain positions
-        self.colour_items = []
-        self.init_ui()
         self.resize(600, 400)
         
-    def delete_row(self):
-        button = self.sender()
-        if not button:
-            return
-
-        index = self.table.indexAt(button.pos())
-        row = index.row()
-
-        self.table.removeRow(row)
-        self.colour_items.pop(row)
-        self.table.setRowCount(len(self.colour_items))
-
-    def new_row(self):
-        found_name = False
-        index = 0
-        new_name = f"new colour ({index})"
-        while not found_name:
-            found_name = True
-            new_name = f"new colour ({index})"
-
-            for (label_item, _) in self.colour_items:
-                if new_name == label_item.text().strip():
-                    found_name = False
-
-            index += 1
-
-        new_row = len(self.colour_items)
-
-        label_item = QLineEdit(new_name)
-        hex_item = QLineEdit("#ffffff")
-        hex_item.setReadOnly(True)
-        
-        pick_btn = QPushButton("...")
-        pick_btn.clicked.connect(self.pick_colour)
-
-        delete_button = QPushButton("X")
-        delete_button.clicked.connect(self.delete_row)
-
-        self.colour_items.append((label_item, hex_item))
-        self.table.setRowCount(len(self.colour_items))
-
-        self.table.setCellWidget(new_row, 0, label_item)
-        self.table.setCellWidget(new_row, 1, hex_item)
-        self.table.setCellWidget(new_row, 2, pick_btn)
-        self.table.setCellWidget(new_row, 3, delete_button)
-
-
-
-    def init_ui(self):
         layout = QVBoxLayout()
-        
-        # Instructions
         info_label = QLabel("Edit colour labels and pick hex values. Must have exactly 8 colours.")
         layout.addWidget(info_label)
         
-        # Table for editing colours
-        self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Label", "Hex Value", "Pick", "Delete"])
-        self.table.setRowCount(len(self.config["COLOUR_SET"]))
-        
-        # Populate table with current colours in their original positions
-        for row, (label, hex_val) in enumerate(self.config["COLOUR_SET"].items()):
-            label_item = QLineEdit(label)
-            hex_item = QLineEdit(hex_val)
-            hex_item.setReadOnly(True)
-            
-            pick_btn = QPushButton("...")
-            pick_btn.clicked.connect(self.pick_colour)
-            
-            delete_button = QPushButton("X")
-            delete_button.clicked.connect(self.delete_row)
-            
-            self.table.setCellWidget(row, 0, label_item)
-            self.table.setCellWidget(row, 1, hex_item)
-            self.table.setCellWidget(row, 2, pick_btn)
-            self.table.setCellWidget(row, 3, delete_button)
-            
-            self.colour_items.append((label_item, hex_item))
-        # Resize columns to fit content
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        
+        # Table
+        self.model = ColourTableModel(self.config.get("COLOUR_SET", {}))
+        self.table = QTableView()
+        self.table.setModel(self.model)
+        self.table.setItemDelegate(ColourDelegate())
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setSelectionBehavior(QTableView.SelectRows)
         layout.addWidget(self.table)
         
         # Buttons
-        button_layout = QHBoxLayout()
+        btn_layout = QHBoxLayout()
         new_btn = QPushButton("New")
+        delete_btn = QPushButton("Delete")
         save_btn = QPushButton("Save")
         cancel_btn = QPushButton("Cancel")
         
-        new_btn.clicked.connect(self.new_row)
+        new_btn.clicked.connect(self.add_row)
+        delete_btn.clicked.connect(self.delete_row)
         save_btn.clicked.connect(self.save_changes)
         cancel_btn.clicked.connect(self.reject)
         
-        button_layout.addStretch()
-        button_layout.addWidget(new_btn)
-        button_layout.addWidget(save_btn)
-        button_layout.addWidget(cancel_btn)
+        btn_layout.addStretch()
+        btn_layout.addWidget(new_btn)
+        btn_layout.addWidget(delete_btn)
+        btn_layout.addWidget(save_btn)
+        btn_layout.addWidget(cancel_btn)
         
-        layout.addLayout(button_layout)
+        layout.addLayout(btn_layout)
         self.setLayout(layout)
-    
-    def pick_colour(self):
-        """Open colour picker for the given row"""
-        button = self.sender()
-        if not button:
-            return
 
-        index = self.table.indexAt(button.pos())
-        row = index.row()
+    def add_row(self):
+        row = self.model.rowCount()
+        index = 0
+        # generate unique label
+        while any(f"new colour ({index})" == label for label, _ in self.model._data):
+            index += 1
+        self.model.insertRow(row, label=f"new colour ({index})")
 
-        if row < 0:
-            return
+    def delete_row(self):
+        selected = self.table.selectionModel().selectedRows()
+        for index in sorted([r.row() for r in selected], reverse=True):
+            self.model.removeRow(index)
 
-        current_hex = self.colour_items[row][1].text()
-        current_colour = QColor(current_hex)
-        
-        colour = QColorDialog.getColor(current_colour, self, "Pick colour")
-        
-        if colour.isValid():
-            self.colour_items[row][1].setText(colour.name())
-    
     def save_changes(self):
-        """Save changes to colour set, maintaining position order from table"""
-        new_colours = {}
-        
-        # Read table in row order (0-7) to maintain positions
-        for (label_widget, hex_widget) in self.colour_items:
-                
-            label = label_widget.text().strip()
-            hex_val = hex_widget.text().strip()
-        
-            new_colours[label] = hex_val
-        
-        self.config.set("COLOUR_SET", new_colours)
+        self.config["COLOUR_SET"] = self.model.get_all_colours()
         self.accept()
